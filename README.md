@@ -16,7 +16,7 @@
 
 ## 1. Spełnienie wymagań projektu
 
-### Poziom 3.0 (minimum)
+
 - [x] Backend zabezpieczony OAuth 2.0 (walidacja JWT przez JWKS)
 - [x] Przynajmniej 1 endpoint uwzględniający rolę użytkownika (`/api/admin/*`)
 - [x] Przynajmniej 4 zabezpieczone endpointy (`/api/profile`, `/api/tasks` GET/POST/PUT/DELETE, `/api/admin/tasks`, `/api/admin/users`)
@@ -25,8 +25,6 @@
 - [x] Baza danych (PostgreSQL z wolumenem)
 - [x] Skonfigurowany Authorization Server (`auth-server` oparty o `node-oidc-provider`)
 - [x] Włączone PKCE - wymuszone w konfiguracji (`pkce.required = () => true`)
-
-### Poziom wyższy
 - [x] **Docker Compose** orkiestrujący wszystkie komponenty
 - [x] **Inny Authorization Server niż Keycloak** - własny serwer OIDC oparty o `node-oidc-provider` (panva)
 - [x] **Rozbudowana logika biznesowa** - system zarządzania zadaniami z rolami USER/ADMIN, statusami, terminami, przypisaniami
