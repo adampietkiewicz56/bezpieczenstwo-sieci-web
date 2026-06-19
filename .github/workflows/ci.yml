@@ -1,0 +1,163 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  # -------------------- AUTH SERVER --------------------
+  test-auth-server:
+    name: Test auth-server
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: authuser
+          POSTGRES_PASSWORD: authpass
+          POSTGRES_DB: authdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U authuser -d authdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Apply DB schema
+        env:
+          PGPASSWORD: authpass
+        run: psql -h localhost -U authuser -d authdb -f auth-server/init-db.sql
+
+      - name: Install deps
+        working-directory: auth-server
+        run: npm install --no-audit --no-fund
+
+      - name: Run tests
+        working-directory: auth-server
+        env:
+          DATABASE_URL: postgres://authuser:authpass@localhost:5432/authdb
+          ISSUER: http://localhost:9000
+          COOKIE_SECRET: ci-test-secret
+        run: npm test
+
+  # -------------------- BACKEND ------------------------
+  test-backend:
+    name: Test backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: appuser
+          POSTGRES_PASSWORD: apppass
+          POSTGRES_DB: appdb
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U appuser -d appdb"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Apply DB schema
+        env:
+          PGPASSWORD: apppass
+        run: psql -h localhost -p 5433 -U appuser -d appdb -f backend/init-db.sql
+
+      - name: Install deps
+        working-directory: backend
+        run: npm install --no-audit --no-fund
+
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: postgres://appuser:apppass@localhost:5433/appdb
+        run: npm test
+
+  # -------------------- FRONTEND -----------------------
+  build-frontend:
+    name: Build frontend (Vite)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps
+        working-directory: frontend
+        run: npm install --no-audit --no-fund
+      - name: Build
+        working-directory: frontend
+        env:
+          VITE_OIDC_AUTHORITY: http://localhost:9000
+          VITE_OIDC_CLIENT_ID: bezpsw-spa
+          VITE_OIDC_REDIRECT_URI: http://localhost:3000/callback
+          VITE_OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:3000/
+          VITE_API_BASE_URL: http://localhost:8088
+          VITE_API_AUDIENCE: urn:bezpsw:api
+        run: npm run build
+
+  # -------------------- DOCKER BUILD + SMOKE -----------
+  docker-compose-smoke:
+    name: Docker compose - build + smoke test
+    runs-on: ubuntu-latest
+    needs: [test-auth-server, test-backend, build-frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build all images
+        run: docker compose build
+
+      - name: Up (auth-db, app-db, auth-server, backend)
+        run: docker compose up -d auth-db app-db auth-server backend
+
+      - name: Wait for backend healthcheck
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8088/health; then
+              echo "backend OK"
+              break
+            fi
+            echo "waiting backend ($i/60)..."
+            sleep 2
+          done
+
+      - name: Smoke test - niezabezpieczone endpointy
+        run: |
+          curl -fsS http://localhost:8088/health
+          curl -fsS http://localhost:8088/ready
+          curl -fsS http://localhost:9000/health
+
+      - name: Smoke test - OIDC discovery
+        run: |
+          curl -fsS http://localhost:9000/.well-known/openid-configuration | head -c 500
+          echo ""
+          curl -fsS http://localhost:9000/jwks | head -c 200
+
+      - name: Smoke test - bez tokenu /api/profile = 401
+        run: |
+          code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8088/api/profile)
+          [ "$code" = "401" ] || (echo "expected 401, got $code" && exit 1)
+
+      - name: Compose logs (on failure)
+        if: failure()
+        run: docker compose logs --tail=200
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

@@ -1,0 +1,109 @@
+services:
+  # ---------- BAZA DANYCH AUTH SERVERA ----------
+  auth-db:
+    image: postgres:16-alpine
+    container_name: bezpsw-auth-db
+    environment:
+      POSTGRES_USER: authuser
+      POSTGRES_PASSWORD: authpass
+      POSTGRES_DB: authdb
+    volumes:
+      - auth-pgdata:/var/lib/postgresql/data
+      - ./auth-server/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authuser -d authdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5440:5432"
+
+  # ---------- BAZA DANYCH APLIKACJI ----------
+  app-db:
+    image: postgres:16-alpine
+    container_name: bezpsw-app-db
+    environment:
+      POSTGRES_USER: appuser
+      POSTGRES_PASSWORD: apppass
+      POSTGRES_DB: appdb
+    volumes:
+      - app-pgdata:/var/lib/postgresql/data
+      - ./backend/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U appuser -d appdb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5441:5432"
+
+  # ---------- AUTHORIZATION SERVER (OIDC, PKCE) ----------
+  auth-server:
+    build:
+      context: ./auth-server
+    container_name: bezpsw-auth-server
+    environment:
+      NODE_ENV: production
+      PORT: 9000
+      ISSUER: http://localhost:9000
+      DATABASE_URL: postgres://authuser:authpass@auth-db:5432/authdb
+      COOKIE_SECRET: dev-cookie-secret-change-me
+      # client (SPA frontend) - public client, PKCE only, brak client_secret
+      CLIENT_ID: bezpsw-spa
+      CLIENT_REDIRECT_URI: http://localhost:3000/callback
+      CLIENT_POST_LOGOUT_REDIRECT_URI: http://localhost:3000/
+      CLIENT_WEB_ORIGIN: http://localhost:3000
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    ports:
+      - "9000:9000"
+
+  # ---------- BACKEND API (Resource Server) ----------
+  backend:
+    build:
+      context: ./backend
+    container_name: bezpsw-backend
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DATABASE_URL: postgres://appuser:apppass@app-db:5432/appdb
+      # OIDC_ISSUER musi byc IDENTYCZNE z claimem `iss` w JWT (czyli z ISSUER
+      # auth-servera). To tylko string do porownania - URL nie musi byc
+      # osiagalny z tego kontenera. JWKS pobieramy oddzielnie z OIDC_JWKS_URI.
+      OIDC_ISSUER: http://localhost:9000
+      OIDC_JWKS_URI: http://auth-server:9000/jwks
+      OIDC_AUDIENCE: urn:bezpsw:api
+      CORS_ORIGIN: http://localhost:3000
+    depends_on:
+      app-db:
+        condition: service_healthy
+      auth-server:
+        condition: service_started
+    ports:
+      - "8088:8080"
+
+  # ---------- FRONTEND (React SPA) ----------
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_OIDC_AUTHORITY: http://localhost:9000
+        VITE_OIDC_CLIENT_ID: bezpsw-spa
+        VITE_OIDC_REDIRECT_URI: http://localhost:3000/callback
+        VITE_OIDC_POST_LOGOUT_REDIRECT_URI: http://localhost:3000/
+        VITE_API_BASE_URL: http://localhost:8088
+        VITE_API_AUDIENCE: urn:bezpsw:api
+    container_name: bezpsw-frontend
+    depends_on:
+      - backend
+      - auth-server
+    ports:
+      - "3000:80"
+
+volumes:
+  # WOLUMEN AUTHORIZATION SERVERA (wymaganie projektu na wyższą ocenę)
+  auth-pgdata:
+    name: bezpsw_auth-pgdata
+  app-pgdata:
+    name: bezpsw_app-pgdata

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title><%= title %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;
+           background: linear-gradient(135deg,#1e3a8a 0%,#0f172a 100%); color: #f1f5f9;
+           display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #1e293b; padding: 32px 28px; border-radius: 10px; width: 100%;
+            max-width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,.3); }
+    h1 { margin: 0 0 6px; font-size: 20px; }
+    .subtitle { margin: 0 0 20px; color: #94a3b8; font-size: 13px; }
+    .client { color: #38bdf8; }
+    label { display: block; margin: 12px 0 4px; font-size: 13px; color: #cbd5e1; }
+    input[type=text], input[type=password] { width: 100%; padding: 10px 12px;
+      background: #0f172a; color: #e2e8f0; border: 1px solid #334155;
+      border-radius: 6px; font-size: 14px; outline: none; }
+    input:focus { border-color: #38bdf8; }
+    .actions { margin-top: 20px; display: flex; gap: 10px; }
+    button { flex: 1; padding: 10px 16px; border: none; border-radius: 6px;
+             font-size: 14px; cursor: pointer; }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-secondary { background: #475569; color: white; }
+    .err { background: #7f1d1d; color: #fef2f2; padding: 8px 12px;
+           border-radius: 6px; font-size: 13px; margin-bottom: 12px; }
+    .hint { margin-top: 16px; padding: 10px; background: #0f172a; border-radius: 6px;
+            font-size: 12px; color: #94a3b8; line-height: 1.5; }
+    .hint b { color: #cbd5e1; }
+    code { color: #fbbf24; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Logowanie</h1>
+    <p class="subtitle">do aplikacji <span class="client"><%= client.client_id %></span></p>
+
+    <% if (flash) { %>
+      <div class="err"><%= flash %></div>
+    <% } %>
+
+    <form method="POST" action="/interaction/<%= uid %>/login" autocomplete="off">
+      <label for="login">Login lub email</label>
+      <input id="login" name="login" type="text" required autofocus />
+
+      <label for="password">Haslo</label>
+      <input id="password" name="password" type="password" required />
+
+      <div class="actions">
+        <button type="submit" class="btn-primary">Zaloguj</button>
+      </div>
+    </form>
+
+    <div class="hint">
+      <b>Konta demo:</b><br />
+      <code>alice / password</code> (user)<br />
+      <code>bob / password</code> (user)<br />
+      <code>admin / password</code> (admin + user)
+    </div>
+  </div>
+</body>
+</html>

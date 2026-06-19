@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <title><%= title %></title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; font-family: system-ui, -apple-system, sans-serif;
+           background: linear-gradient(135deg,#1e3a8a 0%,#0f172a 100%); color: #f1f5f9;
+           display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .card { background: #1e293b; padding: 32px 28px; border-radius: 10px; width: 100%;
+            max-width: 460px; box-shadow: 0 10px 25px rgba(0,0,0,.3); }
+    h1 { margin: 0 0 6px; font-size: 20px; }
+    .subtitle { margin: 0 0 16px; color: #94a3b8; font-size: 13px; }
+    .client { color: #38bdf8; font-weight: bold; }
+    .section { margin: 14px 0; }
+    .section h3 { margin: 0 0 6px; font-size: 13px; color: #cbd5e1; text-transform: uppercase;
+                  letter-spacing: 1px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip { background: #0f172a; border: 1px solid #334155; color: #e2e8f0;
+            padding: 4px 10px; border-radius: 999px; font-size: 12px; }
+    .actions { margin-top: 20px; display: flex; gap: 10px; }
+    button { flex: 1; padding: 10px 16px; border: none; border-radius: 6px;
+             font-size: 14px; cursor: pointer; }
+    .btn-primary { background: #16a34a; color: white; }
+    .btn-secondary { background: #ef4444; color: white; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Zgoda na dostep</h1>
+    <p class="subtitle">Aplikacja <span class="client"><%= client.client_id %></span> chce uzyskac dostep:</p>
+
+    <% if (prompt.details.missingOIDCScope && prompt.details.missingOIDCScope.length) { %>
+      <div class="section">
+        <h3>Zakresy OIDC</h3>
+        <div class="chips">
+          <% prompt.details.missingOIDCScope.forEach(function(s){ %>
+            <span class="chip"><%= s %></span>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+
+    <% if (prompt.details.missingOIDCClaims && prompt.details.missingOIDCClaims.length) { %>
+      <div class="section">
+        <h3>Claimy</h3>
+        <div class="chips">
+          <% prompt.details.missingOIDCClaims.forEach(function(c){ %>
+            <span class="chip"><%= c %></span>
+          <% }); %>
+        </div>
+      </div>
+    <% } %>
+
+    <% if (prompt.details.missingResourceScopes) { %>
+      <div class="section">
+        <h3>Zasoby API</h3>
+        <% Object.keys(prompt.details.missingResourceScopes).forEach(function(indicator){ %>
+          <div style="font-size:12px;color:#94a3b8;margin:6px 0 4px"><%= indicator %></div>
+          <div class="chips">
+            <% prompt.details.missingResourceScopes[indicator].forEach(function(s){ %>
+              <span class="chip"><%= s %></span>
+            <% }); %>
+          </div>
+        <% }); %>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/interaction/<%= uid %>/confirm" style="margin:0">
+      <div class="actions">
+        <button type="submit" class="btn-primary">Akceptuje</button>
+      </div>
+    </form>
+    <form method="POST" action="/interaction/<%= uid %>/abort" style="margin:8px 0 0">
+      <div class="actions">
+        <button type="submit" class="btn-secondary">Odrzucam</button>
+      </div>
+    </form>
+  </div>
+</body>
+</html>
