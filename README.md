@@ -1,9 +1,11 @@
 # Bezpieczna aplikacja webowa z OAuth 2.0 / OIDC + PKCE
 
 **Autor:** Adam Pietkiewicz
-**Grupa:** _<TU_WPISZ_NUMER_GRUPY>_
+**Numer indeksu:** 298624
+**Grupa:** 3
 **Przedmiot:** Bezpieczeństwo aplikacji webowych
-**Termin:** 19.06.2026
+
+
 
 > Projekt zaliczeniowy demonstrujący zabezpieczenie aplikacji webowej standardem **OAuth 2.0 / OpenID Connect**
 > z obowiązkowym **PKCE** (Proof Key for Code Exchange), niezależnym **Authorization Serverem** (nie Keycloak),
